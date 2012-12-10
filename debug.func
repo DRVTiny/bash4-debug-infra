@@ -1,0 +1,73 @@
+DEFAULT_DEBUG_LEVEL=ERROR
+
+declare -A S2L
+declare -a L2S
+
+c=0
+for svr in FATAL ERROR WARN INFO DEBUG; do
+ S2L[$svr]=$c
+ L2S[$c]=$svr
+ (( c++ ))
+done
+
+log_open () {
+ local logFile="$1"
+ [[ -f $logFile && ! -w $logFile ]] && return 1
+ exec 4>>$logFile
+ return 0
+}
+
+getDebugLevel () {
+ local dbgLevel dbgLevelNum dbgLevelSvr
+
+ if [[ $1 ]]; then
+  dbgLevel=$1
+ else
+  dbgLevel=${DEBUG_LEVEL:-$DEFAULT_DEBUG_LEVEL}
+ fi
+
+ dbgLevel=${dbgLevel^^}
+ 
+ if [[ ${S2L[$dbgLevel]} ]]; then
+  dbgLevelNum=${S2L[$dbgLevel]}
+  dbgLevelSvr=$dbgLevel
+ elif [[ $dbgLevel =~ ^[0-9]+$ ]] && (( dbgLevel<${#L2S[@]} )); then
+  dbgLevelNum=$dbgLevel
+  dbgLevelSvr=${L2S[$dbgLevel]}
+ else
+  dbgLevelNum=${S2L[$DEFAULT_DEBUG_LEVEL]}
+  dbgLevelSvr=$DEFAULT_DEBUG_LEVEL
+ fi
+ echo -n "$dbgLevelSvr"
+ return $dbgLevelNum
+}
+
+log_ () {
+ [[ $1 ]] || return 1
+ local SVR="$1"; shift
+ local STATE_DESCR="${STATE:+\"$STATE\"}"
+ local cur_dbgLevelSvr cur_dbgLevelNum rq_dbgLevelSvr rq_dbgLevelNum
+ cur_dbgLevelSvr=$(getDebugLevel)
+ cur_dbgLevelNum=$?
+ rq_dbgLevelSvr=$(getDebugLevel $SVR)
+ rq_dbgLevelNum=$?
+
+ (( rq_dbgLevelNum <= cur_dbgLevelNum )) && \
+  echo "$(date +%H\:%M\:%S\ %d/%m/%Y)| ${slf:-${0##*/}}[$$${PPID:+/$PPID}]| ${rq_dbgLevelSvr}| ST=${STATE_DESCR:-<UNKNOWN>}| $@" >&4
+
+ return 0
+}
+
+for svr in ${!S2L[@]}; do
+ eval "
+${svr,,}_ () {
+ log_ $svr \$@
+ return $?
+}
+
+${svr}_ () {
+ log_ $svr \$@
+ return $?
+}
+"
+done
