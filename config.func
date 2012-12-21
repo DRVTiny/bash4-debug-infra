@@ -1,18 +1,24 @@
 read_ini () {
+local l sect lstSections=()
   (( $# )) || return 1
-  local iniFile2Read="$1"
+local iniFile2Read="$1"
   [[ -f $iniFile2Read && -r $iniFile2Read ]] || return 2
   sect=''
   while read -r l; do
    [[ $l =~ ^[[:space:]]*([\#;].*)?$ ]] && continue
    if [[ $l =~ ^[[:space:]]*\[([^\]]+)\][[:space:]]*$ ]]; then
     sect=${BASH_REMATCH[1]}
+    lstSections+=($sect)
+    eval "declare -A INI${sect}"
    elif [[ $sect && $l =~ ^[[:space:]]*([A-Za-z_0-9]+)[[:space:]]*=[[:space:]]*(.+)$ ]]; then
-    eval "INI${sect}[${BASH_REMATCH[1]}]=\"${BASH_REMATCH[2]}\""  
+    eval "INI${sect}[${BASH_REMATCH[1]}]=\"${BASH_REMATCH[2]}\""
    else
     echo 'Wrong ini file format: section ID must preceed any parameters' >&2
     return 3
    fi 
   done <$iniFile2Read
+  for sect in ${lstSections[@]}; do
+   declare -p INI${sect} 2>/dev/null
+  done
   return 0
 }

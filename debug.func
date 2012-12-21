@@ -1,3 +1,4 @@
+slf=${slf-${0##*/}}
 DEFAULT_DEBUG_LEVEL=ERROR
 
 declare -A S2L
