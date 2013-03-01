@@ -1,5 +1,5 @@
 read_ini () {
-local l sect lstSections=()
+local l v hv sect lstSections=()
   (( $# )) || return 1
 local iniFile2Read="$1"
   [[ -f $iniFile2Read && -r $iniFile2Read ]] || return 2
@@ -9,7 +9,8 @@ local iniFile2Read="$1"
    if [[ $l =~ ^[[:space:]]*\[([^\]]+)\][[:space:]]*$ ]]; then
     sect=${BASH_REMATCH[1]}
     lstSections+=($sect)
-    eval "declare -A INI${sect}"
+    unset INI${sect}
+    declare -A INI${sect}
    elif [[ $sect && $l =~ ^[[:space:]]*([A-Za-z_0-9]+)[[:space:]]*=[[:space:]]*(.+)$ ]]; then
     eval "INI${sect}[${BASH_REMATCH[1]}]=\"${BASH_REMATCH[2]}\""
    else
@@ -17,8 +18,42 @@ local iniFile2Read="$1"
     return 3
    fi 
   done <$iniFile2Read
+  for sect in ${lstSections[@]}; do 
+   for v in $(eval "echo \${!INI$sect[@]}"); do
+    hv="INI$sect[$v]"
+    eval "$hv=\"$(doMacroSub ${!hv})\""
+   done
+  done
   for sect in ${lstSections[@]}; do
+   echo -n "unset INI${sect}; "
    declare -p INI${sect} 2>/dev/null
   done
   return 0
+}
+
+doMacroSub () {
+local ERRC_FUNC_REQUIRE_ARG=1 ERRC_NOTHING_TO_DO=2 ERRC_COMMAND_CANTBE_EVAL=3
+ (( $# )) || return $ERRC_FUNC_REQUIRE_ARG
+ local v="$@" m o
+ [[ $v =~ \{\{.+\}\} ]] || { echo "$v"; return $ERRC_NOTHING_TO_DO; }
+ while read -r m; do
+  if [[ $m =~ [[:space:]] ]]; then
+   o=$(eval "$m" 2>/dev/null) || return $ERRC_COMMAND_CANTBE_EVAL
+  elif [[ $m =~ \. ]]; then
+   eval "o=\${INI${m%%.*}[${m#*.}]}"
+  else
+   o="${!m}"
+  fi
+  v=${v/\{\{$m\}\}/$o}
+ done < <(
+   sed -r -e 's/\}\}[^{]+\{\{/}}{{/g; s/^[^{]+\{/{/; s/}[^}{]+$/}/; s%\}\}$%%; s%\}\}%\n%g; s%\{\{%%g' -e '/^$/d' <<<"$v" | \
+    sort | uniq
+         )
+ if [[ $v =~ \{\{.+\}\} ]]; then
+  doMacroSub $v
+  return $?
+ else
+  echo "$v"
+ fi
+ return 0
 }
