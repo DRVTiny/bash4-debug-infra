@@ -1,5 +1,5 @@
 read_ini () {
-local l v hv sect lstSections=()
+local l v hv sect INIsection=()
   (( $# )) || return 1
 local iniFile2Read="$1"
   [[ -f $iniFile2Read && -r $iniFile2Read ]] || return 2
@@ -8,7 +8,7 @@ local iniFile2Read="$1"
    [[ $l =~ ^[[:space:]]*([\#;].*)?$ ]] && continue
    if [[ $l =~ ^[[:space:]]*\[([^\]]+)\][[:space:]]*$ ]]; then
     sect=${BASH_REMATCH[1]}
-    lstSections+=($sect)
+    INIsection+=($sect)
     unset INI${sect}
     declare -A INI${sect}
    elif [[ $sect && $l =~ ^[[:space:]]*([A-Za-z_0-9]+)[[:space:]]*=[[:space:]]*(.+)$ ]]; then
@@ -18,16 +18,17 @@ local iniFile2Read="$1"
     return 3
    fi 
   done <$iniFile2Read
-  for sect in ${lstSections[@]}; do 
+  for sect in ${INIsection[@]}; do 
    for v in $(eval "echo \${!INI$sect[@]}"); do
     hv="INI$sect[$v]"
     eval "$hv=\"$(doMacroSub ${!hv})\""
    done
   done
-  for sect in ${lstSections[@]}; do
+  for sect in ${INIsection[@]}; do
    echo -n "unset INI${sect}; "
    declare -p INI${sect} 2>/dev/null
   done
+  declare -p INIsection
   return 0
 }
 
