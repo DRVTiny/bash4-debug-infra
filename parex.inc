@@ -1,5 +1,7 @@
-#set -u
+set +H
 declare -i CPU_KERNELS=$(fgrep processor /proc/cpuinfo | wc -l)
+declare -i MAX_TASKS=${MAX_TASKS-$CPU_KERNELS}
+
 declare -A TASKS_QUEUE=()
 
 unset wait4_cpu_free push_task
@@ -16,21 +18,20 @@ rotate_tq () {
 }
 
 wait4_cpu_free () {
-# set -x
  while :; do
   rotate_tq || break
+  sleep 0.01
  done
-# set +x
  return 0
 }
 
 push_task () {
  local taskPID
- echo "PID_QUEUE=${!TASKS_QUEUE[@]}"
+# echo "PID_QUEUE=${!TASKS_QUEUE[@]}"
 
  if (( ${#TASKS_QUEUE[@]} )); then  
   rotate_tq  
-  (( ${#TASKS_QUEUE[@]} >= CPU_KERNELS )) && wait4_cpu_free
+  (( ${#TASKS_QUEUE[@]} >= MAX_TASKS )) && wait4_cpu_free
  fi
 
  eval "$(cat -)" &
@@ -38,4 +39,15 @@ push_task () {
  [[ -f /proc/$taskPID/cmdline ]] && \
   TASKS_QUEUE[$taskPID]="$(</proc/$taskPID/cmdline)"
  return $?
+}
+
+wait4_all_gone () {
+ declare -i taskPID errc=0
+ (( ${#TASKS_QUEUE[@]} )) || return 0
+ for taskPID in ${!TASKS_QUEUE[@]}; do
+  wait $taskPID
+  errc+=$?
+  unset TASKS_QUEUE[$taskPID]
+ done
+ return $errc
 }
