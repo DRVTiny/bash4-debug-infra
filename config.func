@@ -11,8 +11,8 @@ local iniFile2Read="$1"
     INIsection+=($sect)
     unset INI${sect}
     declare -A INI${sect}
-   elif [[ $sect && $l =~ ^[[:space:]]*([A-Za-z_0-9]+)[[:space:]]*=[[:space:]]*(.+)$ ]]; then
-    eval "INI${sect}[${BASH_REMATCH[1]}]=\"${BASH_REMATCH[2]}\""
+   elif [[ $sect && $l =~ ^[[:space:]]*([A-Za-z_0-9]+)[[:space:]]*=[[:space:]]*([^#;]+)([[:space:]]+[#;].*)?$ ]]; then
+    eval "INI${sect}[${BASH_REMATCH[1]}]='${BASH_REMATCH[2]}'"
    else
     echo 'Wrong ini file format: section ID must preceed any parameters' >&2
     return 3
@@ -24,11 +24,10 @@ local iniFile2Read="$1"
     eval "$hv=\"$(doMacroSub ${!hv})\""
    done
   done
-  for sect in ${INIsection[@]}; do
+  for sect in ${INIsection[@]} section; do
    echo -n "unset INI${sect}; "
    declare -p INI${sect} 2>/dev/null
   done
-  declare -p INIsection
   return 0
 }
 
