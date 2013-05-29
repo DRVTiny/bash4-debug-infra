@@ -1,6 +1,6 @@
 set +H
 declare -i CPU_KERNELS=$(fgrep processor /proc/cpuinfo | wc -l)
-declare -i MAX_TASKS=${MAX_TASKS-$CPU_KERNELS}
+declare -i MAX_TASKS=${MAX_TASKS:-$CPU_KERNELS}
 
 declare -A TASKS_QUEUE=()
 
