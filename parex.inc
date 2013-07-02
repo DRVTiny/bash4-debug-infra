@@ -26,15 +26,30 @@ wait4_cpu_free () {
 }
 
 push_task () {
- local taskPID
+ local taskPID pthInclude flUseEval=0
+ while [[ $@ ]]; do
+  case $1 in
+   -e) flUseEval=1 ;;
+   -f) shift; pthInclude="$1"
+       [[ -r $pthInclude ]] || { echo 'Invalid include file' >&2; return 101; }
+    ;;
+   *) echo 'Unknown parameter specified' >&2; return 1 ;;
+  esac
+  shift
+ done
 # echo "PID_QUEUE=${!TASKS_QUEUE[@]}"
 
  if (( ${#TASKS_QUEUE[@]} )); then  
   rotate_tq  
   (( ${#TASKS_QUEUE[@]} >= MAX_TASKS )) && wait4_cpu_free
  fi
-
- eval "$(cat -)" &
+ if (( flUseEval )); then
+  eval "$(cat -)" &
+ elif [[ $pthInclude ]]; then
+  source "$pthInclude" &
+ else  
+  source <(cat -) &
+ fi
  taskPID=$!
  [[ -f /proc/$taskPID/cmdline ]] && \
   TASKS_QUEUE[$taskPID]="$(</proc/$taskPID/cmdline)"
