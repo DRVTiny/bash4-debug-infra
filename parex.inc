@@ -2,6 +2,7 @@ set +H
 declare -i CPU_KERNELS=$(fgrep processor /proc/cpuinfo | wc -l)
 declare -i MAX_TASKS=${MAX_TASKS:-$CPU_KERNELS}
 
+FL_CLEVER_TASK=0
 declare -A TASKS_QUEUE=()
 
 unset wait4_cpu_free push_task
@@ -18,18 +19,23 @@ rotate_tq () {
 }
 
 wait4_cpu_free () {
- while :; do
-  rotate_tq || break
-  sleep 0.01
- done
+ if (( FL_CLEVER_TASK )); then
+  wait
+ else
+  while :; do
+   rotate_tq || break
+   sleep 0.01
+  done
+ fi
  return 0
 }
 
 push_task () {
- local taskPID pthInclude flUseEval=0
+ local taskPID pthInclude flUseEval=0 flCleverTask=0
  while [[ $@ ]]; do
   case $1 in
    -e) flUseEval=1 ;;
+   -c) flCleverTask=1 ;;
    -f) shift; pthInclude="$1"
        [[ -r $pthInclude ]] || { echo 'Invalid include file' >&2; return 101; }
     ;;
@@ -41,7 +47,13 @@ push_task () {
 
  if (( ${#TASKS_QUEUE[@]} )); then  
   rotate_tq  
-  (( ${#TASKS_QUEUE[@]} >= MAX_TASKS )) && wait4_cpu_free
+  if (( ${#TASKS_QUEUE[@]} >= MAX_TASKS )); then
+   if (( flCleverTask )); then
+    wait
+   else
+    wait4_cpu_free
+   fi
+  fi
  fi
  if (( flUseEval )); then
   eval "$(cat -)" &
