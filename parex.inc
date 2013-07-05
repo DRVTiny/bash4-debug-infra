@@ -20,7 +20,7 @@ rotate_tq () {
 
 wait4_cpu_free () {
  if (( FL_CLEVER_TASK )); then
-  wait
+  wait ${!TASKS_QUEUE[@]}
  else
   while :; do
    rotate_tq || break

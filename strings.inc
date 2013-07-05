@@ -17,12 +17,18 @@ zp () {
  printf "%0${1}g" $2
 }
 
-lst_rm () {
- local lst="$1"
- local what2rm="$2"
- local sep="${3:- }"
- [[ $lst =~ (^|.+${sep})${what2rm}(${sep}.+|$) ]] && \
+lpop () {
+ (( $#<2 || $#>3 )) && return 1
+ local lst="$1" ITEM="$2" sep="${3:- }"
+ [[ $lst =~ (^|.+${sep})$ITEM(${sep}.+|$) ]] && \
   echo -n "${BASH_REMATCH[1]%$sep}${BASH_REMATCH[1]:+${BASH_REMATCH[2]:+$sep}}${BASH_REMATCH[2]#$sep}" || \
   echo -n "$lst"
  return 0
+}
+
+lpush () {
+ (( $#<2 || $#>3 )) && return 1 
+ local lst="$1" ITEM="$2" sep="${3:- }" 
+ lst+="${lst:+$sep}$ITEM"
+ echo -n "$lst"
 }
