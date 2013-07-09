@@ -10,7 +10,7 @@ unset wait4_cpu_free push_task
 rotate_tq () {
  declare -i taskPID flTaskGone=0 
  for taskPID in ${!TASKS_QUEUE[@]}; do
-  [[ -f /proc/$taskPID/cmdline && ${TASKS_QUEUE[$taskPID]} == "$(</proc/$taskPID/cmdline)" ]] 2>/dev/null || {
+  [[ -f /proc/$taskPID/cmdline ]] 2>/dev/null || {
    flTaskGone=1
    unset TASKS_QUEUE[$taskPID]
   }
