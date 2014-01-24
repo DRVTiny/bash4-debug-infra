@@ -6,3 +6,9 @@ doSSHLogin_AttachScreen () {
  fi
  return $ret
 }
+
+getMySQLUseFiles () {
+ find /proc -maxdepth 1 -mindepth 1 -exec bash -c '[[ {} =~ /proc/[0-9]+ ]]' \; -exec grep -q 'bin/mysql' {}/cmdline \; -print | \
+  sed 's%^/proc/%%' | parallel lsof -p'{}' | awk '$9 ~ /^\// {print $9}' | sort | uniq
+ return $?
+}
