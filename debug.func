@@ -1,5 +1,3 @@
-exec 4<&2
-
 slf=${slf-${0##*/}}
 DEFAULT_DEBUG_LEVEL=ERROR
 
@@ -13,10 +11,28 @@ for svr in FATAL ERROR WARN INFO DEBUG; do
  (( c++ ))
 done
 
+exec 4<&2
+declare -a dbgFDs=(4)
+flDEBUG_NoFdsOpened=1
+
 log_open () {
- local logFile="$1"
- [[ -f $logFile && ! -w $logFile ]] && return 1
- exec 4>>$logFile
+ local logFile fdNum append
+ while [[ $#>0 ]]; do
+  logFile=$1; shift
+  if [[ ${logFile,,} =~ ^std(err|out)$ ]]; then
+   [[ $logFile =~ err ]]
+   logFile='&'$((2-$?))
+   append=''
+  else
+   [[ -f $logFile && ! -w $logFile ]] && continue
+   append='>'
+  fi
+  eval "exec {fdNum}>${append}${logFile}" && {
+   [[ $flDEBUG_NoFdsOpened ]] && \
+    unset dbgFDs[0] flDEBUG_NoFdsOpened
+   dbgFDs+=($fdNum)
+  }
+ done
  return 0
 }
 
@@ -50,14 +66,17 @@ log_ () {
  local SVR="$1"; shift
  local STATE_DESCR="${STATE:+\"$STATE\"}"
  local cur_dbgLevelSvr cur_dbgLevelNum rq_dbgLevelSvr rq_dbgLevelNum
+ local fdNum
  cur_dbgLevelSvr=$(getDebugLevel)
  cur_dbgLevelNum=$?
  rq_dbgLevelSvr=$(getDebugLevel $SVR)
  rq_dbgLevelNum=$?
 
- (( rq_dbgLevelNum <= cur_dbgLevelNum )) && \
-  echo "$(date +%H\:%M\:%S\ %d/%m/%Y)| ${slf:-${0##*/}}[$$${PPID:+/$PPID}]| ${rq_dbgLevelSvr}| ST=${STATE_DESCR:-<UNKNOWN>}| $@" >&4
-
+ if (( rq_dbgLevelNum <= cur_dbgLevelNum )); then
+  for fdNum in ${dbgFDs[@]}; do
+   echo "$(date +%H\:%M\:%S\ %d/%m/%Y)| ${slf:-${0##*/}}[$$${PPID:+/$PPID}]| ${rq_dbgLevelSvr}${STATE_DESCR:+| ST=$STATE_DESCR}| $@" >&$fdNum
+  done
+ fi
  return 0
 }
 
