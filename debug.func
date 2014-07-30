@@ -10,32 +10,67 @@ for svr in FATAL ERROR WARN INFO DEBUG; do
  L2S[$c]=$svr
  (( c++ ))
 done
+S2L[ERR]=${S2L[ERROR]}
+S2L[DBG]=${S2L[DEBUG]}
 
 exec 4<&2
-declare -a dbgFDs=(4)
+declare -A dbgFDs=(['STDERR']=4)
+declare -A fdLogs=([4]='STDERR')
 flDEBUG_NoFdsOpened=1
 
 log_open () {
- local logFile fdNum append
+ local logFile svLogFile fdNum append flGoes2TTY
  while [[ $#>0 ]]; do
   logFile=$1; shift
-  if [[ ${logFile,,} =~ ^std(err|out)$ ]]; then
-   [[ $logFile =~ err ]]
+  ! [[ $logFile =~ ^(std(err|out)|STD(ERR|OUT))$ ]]
+  flGoes2TTY=$?
+  (( flGoes2TTY )) && logFile=${logFile^^}
+  [[ ${dbgFDs[$logFile]} ]] && {
+    echo "log_open: $logFile already opened as fd #${dbgFDs[$logFile]}, close it first to reopen" >&2
+    continue
+  }
+  svLogFile=$logFile
+  if (( flGoes2TTY )); then
+   [[ $logFile =~ ERR ]]
    logFile='&'$((2-$?))
    append=''
   else
-   [[ -f $logFile && ! -w $logFile ]] && continue
+   [[ -f $logFile && ! -w $logFile ]] && {
+     echo "$logFile is not writable, cant open it, skipped" >&2
+     continue
+   }
    append='>'
   fi
   eval "exec {fdNum}>${append}${logFile}" && {
    [[ $flDEBUG_NoFdsOpened ]] && \
-    unset dbgFDs[0] flDEBUG_NoFdsOpened
-   dbgFDs+=($fdNum)
+    unset dbgFDs['STDERR'] fdLogs[4] flDEBUG_NoFdsOpened
+   dbgFDs+=([$svLogFile]=$fdNum)
+   fdLogs[$fdNum]=$svLogFile
   }
  done
  return 0
 }
-
+log_close () {
+ local logFile=$1 fdNum
+ if [[ $#>0 ]]; then
+  while [[ $#>0 ]]; do
+   logFile=$1; shift
+   [[ $logFile =~ ^(std(err|out)|STD(ERR|OUT))$ ]] && logFile=${logFile^^}
+   fdNum=${dbgFDs[$logFile]}
+   [[ $fdNum ]] || {
+     echo "log_close: $logFile was not opened, so cant close it" >&2
+     continue
+   }
+   [[ -e /proc/$BASHPID/fd/$fdNum ]] && exec {fdNum}<&-
+   unset fdLogs[$fdNum] dbgFDs[$logFile]
+  done
+ else
+  for fdNum in ${dbgFDs[@]}; do
+   [[ -e /proc/$BASHPID/fd/$fdNum ]] && exec {fdNum}<&-
+   unset dbgFDs[${fdLogs[$fdNum]}] fdLogs[$fdNum]
+  done   
+ fi
+}
 getDebugLevel () {
  local dbgLevel dbgLevelNum dbgLevelSvr
 
