@@ -1,5 +1,5 @@
 set +H
-declare -i CPU_KERNELS=$(fgrep processor /proc/cpuinfo | wc -l)
+declare -i CPU_KERNELS=$(fgrep -c processor /proc/cpuinfo)
 declare -i MAX_TASKS=${MAX_TASKS:-$CPU_KERNELS}
 
 FL_CLEVER_TASK=0
