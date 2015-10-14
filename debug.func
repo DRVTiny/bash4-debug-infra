@@ -50,6 +50,7 @@ log_open () {
  done
  return 0
 }
+
 log_close () {
  local logFile=$1 fdNum
  if [[ $#>0 ]]; then
@@ -71,7 +72,9 @@ log_close () {
   done   
  fi
 }
+
 getDebugLevel () {
+ [[ $TRACE ]] && set +x
  local dbgLevel dbgLevelNum dbgLevelSvr
 
  if [[ $1 ]]; then
@@ -93,11 +96,14 @@ getDebugLevel () {
   dbgLevelSvr=$DEFAULT_DEBUG_LEVEL
  fi
  echo -n "$dbgLevelSvr"
+ [[ $TRACE ]] && set -x
  return $dbgLevelNum
 }
 
 log_ () {
  [[ $1 ]] || return 1
+ [[ $TRACE ]] && set +x
+
  local SVR="$1"; shift
  local STATE_DESCR="${STATE:+\"$STATE\"}"
  local cur_dbgLevelSvr cur_dbgLevelNum rq_dbgLevelSvr rq_dbgLevelNum
@@ -112,6 +118,8 @@ log_ () {
    echo "$(date +%H\:%M\:%S\ %d/%m/%Y)| ${slf:-${0##*/}}[$$${PPID:+/$PPID}]| ${rq_dbgLevelSvr}${STATE_DESCR:+| ST=$STATE_DESCR}| $@" >&$fdNum
   done
  fi
+
+ [[ $TRACE ]] && set -x
  return 0
 }
 
