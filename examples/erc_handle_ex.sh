@@ -8,11 +8,18 @@ declare -A err2msg=(
 	['ERR_INT_BY_KBRD']='130::Interrupted by keyboard'
 )
 
-source '/opt/Libs/BASH/erc_handle.inc'
+source 'bash4-debug-infra/erc_handle.inc'
 
 mkdir -p a/b/c/d
 touch a/b/c/d/1
 cleanOnExit a
+
+hook_on_exit () {
+	local erc=$1 msg=$2
+	echo 'hook_on_exit()' >&2
+	caller 0
+	printf 'local error code: %s\nsoft error code: %s\nerror message: %s\n' $(( erc&255 )) $(( erc>>8 )) "$msg" >&2
+}
 
 try $ERR_DL_INVALID_URL wget http://yyy1.ru 4>/dev/null
 #try -e '[[ $retc>1 ]]' $ERR_DL_INVALID_URL wget http://yyy1.ru 4>/dev/null

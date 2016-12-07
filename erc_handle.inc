@@ -31,6 +31,9 @@ exitHandler () {
             (( softRetC )) && ert+="; Return code: $softRetC"
 	    echo "$ert" >&2
           fi
+	  declare -F hook_on_exit >/dev/null && {
+		hook_on_exit $(( exitCode | (softRetC<<8) )) "$msg"
+	  }
 	fi
 	if (( ${#lstFiles2Clean[@]} )); then
           local i
