@@ -34,6 +34,8 @@ exitHandler () {
 	  declare -F hook_on_exit >/dev/null && {
 		hook_on_exit $(( exitCode | (softRetC<<8) )) "$msg"
 	  }
+	else
+	  hook_on_exit 0
 	fi
 	if (( ${#lstFiles2Clean[@]} )); then
           local i
@@ -53,16 +55,17 @@ cleanOnExit () {
 
 exec 4<&2
 try () {
-	local o eval_retc
-	while getopts ':e:' o; do
-		case $o in
-			e) eval_retc=$OPTARG ;;
-			*) : ;;
+	local o eval_retc flDontUseHook
+	while [[ ${1:0:1} == '-' ]]; do
+		case $1 in
+			-e) shift; eval_retc=$1 ;;
+			-H) flDontUseHook=1 ;;
+			*) break ;;
 		esac
+		shift
 	done
-	shift $((OPTIND-1))
-
 	local ercIfFail=$1; shift
+
 	source <(cat <<"EOSOURCE"
 $@	
 EOSOURCE) 2>&4
