@@ -15,3 +15,27 @@ declare -i errc=0
   done
   return $errc
 }
+
+PerlSrch_Pkg () {
+  local -a lstPkgNames lstPerlINC
+  local arg rxPkgNames
+  
+  [[ $@ ]] || return 1
+  while (($#)); do
+    arg=$1; shift
+    if [[ $arg == '--' ]]; then
+      break
+    else
+      lstPkgNames+=("${arg//::/\/}")
+    fi
+  done
+  rxPkgNames="("$(declare -p lstPkgNames | sed -r -e 's%^.+\[0\]="%[0]="%' -e 's%\s*\[[0-9]+\]="([^"]+)"%\1|%g' -e "s%\)'$%%" -e 's%\|$%%')")"
+  
+  readarray -t lstPerlINC < <(perl -e 'print join(qq|\n|  => grep { !/^\.$/ and -d $_ } @INC),"\n"')
+  
+  find "${lstPerlINC[@]}" \
+  	-maxdepth 2 \
+  	-type f \
+  	-regextype posix-extended -regex ".*/${rxPkgNames}\.pm" \
+  	$((($#)) && echo "-exec $@ {} ;" || echo '')
+}

@@ -1,0 +1,5 @@
+#!/bin/bash
+
+source ${0%/*}/../perl.inc
+pkgName=$1; shift
+PerlSrch_Pkg $pkgName ${@:+-- $@}
