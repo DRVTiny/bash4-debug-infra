@@ -34,7 +34,6 @@ PerlSrch_Pkg () {
   readarray -t lstPerlINC < <(perl -e 'print join(qq|\n|  => grep { !/^\.$/ and -d $_ } @INC),"\n"')
   
   find "${lstPerlINC[@]}" \
-  	-maxdepth 2 \
   	-type f \
   	-regextype posix-extended -regex ".*/${rxPkgNames}\.pm" \
   	$((($#)) && echo "-exec $@ {} ;" || echo '')
