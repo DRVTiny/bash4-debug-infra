@@ -1,0 +1,26 @@
+#!/bin/bash
+doShowUsage () {
+	cat <<USAGE >&2
+Usage: $0 -[nx] <package> | -h	  
+	-n to show path to package which will be loaded by Perl in current/actual environment
+	-x to turn on BASH trace mode
+	-h to show this useful message
+USAGE
+}
+[[ $1 ]] || { doShowUsage; exit 1; }
+while getopts 'nxh' k; do
+	case $k in
+	n) flShowNative=1 ;;
+	x) export TRACE=1; set -x ;;
+	h) doShowUsage; exit 0 ;;
+	esac
+done
+shift $((OPTIND-1))
+pckFQName=$1
+pckFile="${pckFQName//:://}.pm"
+if [[ $flShowNative ]]; then
+	perl -M"${pckFQName}" -e 'print $INC{q<'${pckFile}'>}, "\n"'
+else
+	rxPackage="^.*/${pckFile//./\\.}$"
+	find $(perl -e 'print join(" ", @INC)') -type f -regextype posix-extended -regex "${rxPackage}" 2>/dev/null | sort | uniq
+fi
